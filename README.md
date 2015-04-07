@@ -15,7 +15,7 @@ Roads is an abstraction around the HTTP request/response lifecycle. It's very si
  - [Getting Started](#getting-started)
  - [Roads.Road](#roadsroad)
   - [new Road(*Resource* root_resource)](#new-roadresource-root_resource)
-  - [onRequest(*Function* fn)](#roadonrequestfunction-fn)
+  - [use(*Function* fn)](#roadusefunction-fn)
   - [request(*string* method, *string* url, *dynamic* body, *Object* headers)](#roadrequeststring-method-string-url-dynamic-body-object-headers)
   - [server(*IncomingMessage* http_request, *ServerResponse* http_response)](#roadserverincomingmessage-http_request-serverresponse-http_response)
  - [Roads.Resource](#roadsresource)
@@ -113,7 +113,7 @@ Building a project with roads follows a fairly simple workflow.
         });
 ```
 
-Once all of these steps are complete, you should be able to access your roads through your browser. Continue reading the docs below for more information on [error handling](#onrequestfunction-fn), [URL parameters](#url-part) and more!
+Once all of these steps are complete, you should be able to access your roads through your browser. Continue reading the docs below for more information on [error handling](#roadusefunction-fn), [URL parameters](#url-part) and more!
 
 
 
@@ -142,8 +142,10 @@ var road = new roads.Road(root_resource);
 
 
 
-### Road.onRequest(*Function* fn)
-**Add a custom function to be executed along with every request.**
+### Road.use(*Function* fn)
+**Add one or many custom functions to be executed along with every request.**
+
+The functions added will be executed in the order they were added. Each handler must execute the "next" parameter if it wants to continue executing the chain.
 
  name | type                                                                  | required | description
  -----|-----------------------------------------------------------------------|----------|---------------
@@ -151,7 +153,7 @@ var road = new roads.Road(root_resource);
  
  This will be called for every request, even for routes that do not exist. The callback will be executed with the following five parameters :
  
-#### onRequest Callback 
+#### use Callback 
 **function (*string* method,*string* url, *Object* body, *Object* headers, *Function* next)**
 
 name     | type                               | description
@@ -160,19 +162,23 @@ name     | type                               | description
  url     | string                             | The URL that was provided to the request
  body    | object                             | The body that was provided to the request, after it was properly parsed into an object
  headers | object                             | The headers that were provided to the request
- next    | function                           | The [resource method](#resource-method) that the router located. Execute this function to execute the method for this HTTP method and URL. This method will always return a promise.
+ next    | function                           | The next step of the handler chain. If there are no more custom handlers assigned, next will resolve to the [resource method](#resource-method) that the router located. This method will always return a promise.
 
 If the callback does not return a [response](#roadsresponse) object, it will be wrapped in a [response](#roadsresponse) object with the default status code of 200.
 
-    // Example of an onRequest handler
-    road.onRequest(function* (url, body, headers, next) {
+    // Example of a request handler
+    road.use(function (method, url, body, headers, next) {
     	// kill trailing slash as long as we aren't at the root level
         if (url.path != '/' && url.path[url.path.length - 1] === '/') {
             return new roads.Response(null, 302, {
                 location : url.path.substring(0, url.path.length - 1)
             });
         }
-    
+
+        return next();
+    });
+
+    road.use(function(method, url, body, headers, next) {
         // This would also be a good place to identify the authenticated user and add it to the current request context
         // eg: this.cur_user = user;
 
@@ -214,7 +220,7 @@ This function will locate the appropriate [resource method](#resource-method) fo
 
 
 ### Road.server(*IncomingMessage* http_request, *ServerResponse* http_response)
-**An onRequest callback for http.createServer()**
+**A function to facilitate binding the road to http.createServer()**
 
 Helper function to attach your road directly into http.createServer.
 
@@ -324,7 +330,7 @@ Each resource method has access to a request context through ```this```. Each ``
         }
     }));
 
-    road.onRequest(function* (method, url, body, headers, next) {
+    road.use(function* (method, url, body, headers, next) {
         this.uri = '/me';
         return yield next();
     });
