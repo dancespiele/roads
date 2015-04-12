@@ -97,11 +97,7 @@ Building a project with roads follows a fairly simple workflow.
     // Call directly
     road.request('GET', '/users', {page : 2})
         .then(function (response) {
-            if (response.status >= 400) {
-                throw new Error(response.data, response.status);
-            }
-            
-            console.log(response.data);
+            console.log(response);
         });
 ```
 
@@ -210,7 +206,7 @@ This function will locate the appropriate [resource method](#resource-method) fo
     var promise = road.request('GET', '/users/dashron');
     
     promise.then(function (response) {        
-        console.log(response.data);
+        console.log(response);
     });
 
     promise.catch(function (error) {
@@ -343,24 +339,24 @@ The response object contains all of the information you want to send to the clie
 
 
 
-### new Response(*dynamic* data, *number* status, *Object* headers)
+### new Response(*mixed* body, *number* status, *Object* headers)
 **Constructor**
 
 name        | type                               | description
  -----------|------------------------------------|---------------
- data       | dynamic                            | The body of the response. If provided a JavaScript object, and no content-type header, the response will be sent through JSON.stringify, and the content-type header will be set to `application/json`
- status     | number                             | The HTTP Status code
+ body       | mixed                              | The body of the response. If provided a JavaScript object, and no content-type header, the response will be sent through JSON.stringify, and the content-type header will be set to `application/json`
+ status     | number                             | The HTTP Status code.
  headers    | object                             | Key value pairs of http headers.
 
 Create a response object. 
 
     new Response({"uri" : "..."}, 200, {"last-modified":"2014-04-27 00:00:00"});
 
-### Data
+### Body
 **The raw JavaScript object returned by the request**
 
 ```
-    console.log(response.data);
+    console.log(response.body);
 ```
 
 ### Status
@@ -383,10 +379,13 @@ Create a response object.
 
 This will apply the body, status code, and any applicable headers to the provided http_response. It will not end the response, so you need to do that yourself.
 
+    // Use middleware to automatically apply a response wrapper
+    road.use(roads.middleware.standard());
+
     // execute the route logic and retrieve the appropriate response object
     road.request(http_request.method, http_request.url, body, http_request.headers)
         .then(function (response) {
-            // Get the data
+            // Write the response to the server
             response.writeToServer(http_response);
             http_response.end();
         })
